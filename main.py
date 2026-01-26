@@ -107,8 +107,9 @@ with col2:
             st.session_state.selected_restaurant = None
             st.rerun()
     else:
-        st.info("👈 왼쪽 리스트에서 식당을 선택하면 상세 정보가 이곳에 표시됩니다.")
+        st.info("👈 위에서 지역과 음식 종류를 선택후 식당을 선택하면 상세 정보가 아래에 표시됩니다.")
 
 # 푸터
 st.markdown("---")
 st.markdown('<p style="text-align: center; color: #999; font-size: 12px;">용인시 맛집 검색 서비스 | 데이터는 실제 정보와 다를 수 있습니다.</p>', unsafe_allow_html=True)
+
