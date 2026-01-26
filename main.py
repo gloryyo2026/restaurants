@@ -16,7 +16,7 @@ def load_restaurant_data():
         with open('restaurants.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        st.error("restaurants.json 파일을 찾을 수 없습니다.")
+        st.error("restaurants.json 파일을 찾을 수 없습니다. 같은 경로에 있는지 확인해주세요.")
         return {}
 
 data = load_restaurant_data()
@@ -29,6 +29,7 @@ st.markdown("---")
 if 'selected_restaurant' not in st.session_state:
     st.session_state.selected_restaurant = None
 
+# 5. 레이아웃: 컬럼 설정
 col1, col2 = st.columns([1, 1.5])
 
 with col1:
@@ -62,9 +63,9 @@ with col1:
             
             st.info(f"총 {len(restaurants)}개의 식당 검색됨")
             for idx, res in enumerate(restaurants):
-                # 지역명을 포함하여 버튼 표시
-                btn_label = f"{res['식당명']} ({res['지역'].split()[-1]})"
-                if st.button(btn_label, key=f"btn_{idx}", use_container_width=True):
+                # 지역명 정보를 간단히 포함하여 식별 용이하게 표시
+                loc_short = res['지역'].split()[-1]
+                if st.button(f"{res['식당명']} ({loc_short})", key=f"btn_{idx}", use_container_width=True):
                     st.session_state.selected_restaurant = res
 
 with col2:
@@ -73,50 +74,41 @@ with col2:
     if st.session_state.selected_restaurant:
         res = st.session_state.selected_restaurant
         
-        # [수정 핵심] 가격 정보의 첫 번째 항목에도 불렛을 붙이고 정렬합니다.
-        raw_price = res['가격대']
+        # 💰 가격 정보 포맷팅 (첫 항목에도 불릿 추가)
+        raw_price = res.get('가격대', '')
         formatted_price = "• " + raw_price.replace(' / ', '<br>• ')
         
-        # 가독성을 높인 HTML 카드 구조
-        html_content = f"""
-        <div style="background-color: white; padding: 25px; border-radius: 12px; border: 1px solid #eee; border-left: 10px solid #ff4b4b; color: #333; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-            <h2 style="color: #ff4b4b; margin: 0 0 5px 0; font-size: 26px;">🏪 {res['식당명']}</h2>
-            <p style="color: #777; font-size: 14px; margin-bottom: 25px;">📍 {res.get('지역','')} | 🍽️ {res.get('카테고리','')}</p>
-            
-            <div style="margin-bottom: 20px;">
-                <h4 style="margin-bottom: 10px; color: #111; font-size: 18px;">💰 대표 메뉴 및 가격</h4>
-                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; color: #444; line-height: 1.8; font-size: 16px;">
-                    {formatted_price}
-                </div>
-            </div>
-            
-            <div>
-                <h4 style="margin-bottom: 10px; color: #111; font-size: 18px;">📍 주소</h4>
-                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; color: #444; font-size: 15px;">
-                    {res['주소']}
-                </div>
-            </div>
-        </div>
-        """
-        st.markdown(html_content, unsafe_allow_html=True)
+        # ⚠️ HTML 노출 방지 핵심: 문자열 결합 시 들여쓰기 공백을 제거함
+        html_card = (
+            f'<div style="background-color: white; padding: 20px; border-radius: 12px; border: 1px solid #ddd; border-left: 10px solid #ff4b4b; color: #222222; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">'
+            f'<h2 style="color: #ff4b4b; margin: 0 0 5px 0; font-size: 24px;">🏪 {res["식당명"]}</h2>'
+            f'<p style="color: #666666; font-size: 14px; margin-bottom: 20px;">📍 {res.get("지역","")} | 🍽️ {res.get("카테고리","")}</p>'
+            f'<hr style="border: 0.5px solid #eee; margin: 15px 0;">'
+            f'<h4 style="margin: 0 0 10px 0; color: #111111; font-size: 18px;">💰 대표 메뉴 및 가격</h4>'
+            f'<div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; color: #333333; line-height: 1.7; font-size: 16px;">{formatted_price}</div>'
+            f'<h4 style="margin: 20px 0 10px 0; color: #111111; font-size: 18px;">📍 주소</h4>'
+            f'<div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; color: #333333; font-size: 15px;">{res["주소"]}</div>'
+            f'</div>'
+        )
         
-        # 지도 버튼 섹션
+        # HTML 렌더링
+        st.markdown(html_card, unsafe_allow_html=True)
+        
+        # 🗺️ 지도 및 기타 액션
         st.write("") 
         m1, m2, m3 = st.columns(3)
-        # 검색어 최적화
-        search_term = f"{res['식당명']} {res['주소']}"
-        q = quote(search_term)
+        q_full = quote(f"{res['식당명']} {res['주소']}")
         
         with m1: st.link_button("네이버 지도", f"https://map.naver.com/v5/search/{quote(res['식당명'])}", use_container_width=True)
-        with m2: st.link_button("카카오맵", f"https://map.kakao.com/link/search/{q}", use_container_width=True)
-        with m3: st.link_button("구글 지도", f"https://www.google.com/maps/search/{q}", use_container_width=True)
+        with m2: st.link_button("카카오맵", f"https://map.kakao.com/link/search/{q_full}", use_container_width=True)
+        with m3: st.link_button("구글 지도", f"https://www.google.com/maps/search/{q_full}", use_container_width=True)
         
-        if st.button("🔄 검색 초기화", use_container_width=True):
+        if st.button("🔄 다시 검색하기", use_container_width=True):
             st.session_state.selected_restaurant = None
             st.rerun()
     else:
-        st.info("👈 왼쪽 리스트에서 식당을 선택해 주세요.")
+        st.info("👈 왼쪽 리스트에서 식당을 선택하면 상세 정보가 이곳에 표시됩니다.")
 
 # 푸터
 st.markdown("---")
-st.markdown('<p style="text-align: center; color: #999; font-size: 12px;">© 2026 용인시 맛집 가이드</p>', unsafe_allow_html=True)
+st.markdown('<p style="text-align: center; color: #999; font-size: 12px;">용인시 맛집 검색 서비스 | 데이터는 실제 정보와 다를 수 있습니다.</p>', unsafe_allow_html=True)
