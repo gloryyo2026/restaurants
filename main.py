@@ -1,17 +1,19 @@
 import streamlit as st
 import json
+from urllib.parse import quote
 
-# 페이지 설정
+# 1. 페이지 설정
 st.set_page_config(
     page_title="용인시 맛집 검색",
     page_icon="🍴",
     layout="wide"
 )
 
-# JSON 파일 로드
+# 2. JSON 데이터 로드 함수
 @st.cache_data
 def load_restaurant_data():
     try:
+        # 파일명을 본인의 환경에 맞게 확인하세요 (예: 'restaurants.json')
         with open('restaurants.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
@@ -21,21 +23,31 @@ def load_restaurant_data():
 # 데이터 로드
 data = load_restaurant_data()
 
-# 타이틀
+# 3. 타이틀 및 스타일 설정
 st.title("🍴 용인시 맛집 검색")
+st.markdown("""
+    <style>
+    /* 모바일에서 버튼 텍스트가 잘리지 않도록 설정 */
+    .stButton>button {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 st.markdown("---")
 
-# 세션 상태 초기화
+# 4. 세션 상태 초기화
 if 'selected_restaurant' not in st.session_state:
     st.session_state.selected_restaurant = None
 
-# 레이아웃: 2개의 컬럼
-col1, col2 = st.columns([1, 2])
+# 5. 레이아웃: 2개의 컬럼 (모바일에서는 자동으로 위아래 배치됨)
+col1, col2 = st.columns([1, 1.5])
 
 with col1:
     st.subheader("📍 지역 및 카테고리 선택")
     
-    # 1. 지역 선택
+    # 지역 선택
     regions = list(data.keys())
     selected_region = st.selectbox(
         "지역을 선택하세요",
@@ -43,13 +55,12 @@ with col1:
         key="region"
     )
     
-    # 2. 카테고리 선택 (지역이 선택된 경우에만)
+    # 카테고리 선택 (지역이 선택된 경우에만)
     if selected_region != "선택하세요":
-        # 전체 지역이 선택된 경우 모든 카테고리 수집
         if selected_region == "전체":
             all_categories = set()
-            for region in data.values():
-                all_categories.update(region.keys())
+            for r_data in data.values():
+                all_categories.update(r_data.keys())
             categories = sorted(list(all_categories))
         else:
             categories = list(data[selected_region].keys())
@@ -60,141 +71,100 @@ with col1:
             key="category"
         )
         
-        # 3. 식당 리스트 표시 (카테고리가 선택된 경우에만)
+        # 식당 리스트 로직
         if selected_category != "선택하세요":
+            st.markdown("---")
             st.markdown("### 🏪 식당 목록")
             
-            # 식당 리스트 수집
             restaurants = []
             
-            if selected_region == "전체" and selected_category == "전체":
-                # 모든 지역, 모든 카테고리
-                for region_name, region_data in data.items():
-                    for category_name, category_restaurants in region_data.items():
-                        for restaurant in category_restaurants:
-                            restaurant_with_info = restaurant.copy()
-                            restaurant_with_info['지역'] = region_name
-                            restaurant_with_info['카테고리'] = category_name
-                            restaurants.append(restaurant_with_info)
+            # 데이터 필터링
+            for r_name, r_data in data.items():
+                if selected_region == "전체" or selected_region == r_name:
+                    for c_name, c_list in r_data.items():
+                        if selected_category == "전체" or selected_category == c_name:
+                            for res in c_list:
+                                temp_res = res.copy()
+                                temp_res['지역'] = r_name
+                                temp_res['카테고리'] = c_name
+                                restaurants.append(temp_res)
             
-            elif selected_region == "전체":
-                # 모든 지역, 특정 카테고리
-                for region_name, region_data in data.items():
-                    if selected_category in region_data:
-                        for restaurant in region_data[selected_category]:
-                            restaurant_with_info = restaurant.copy()
-                            restaurant_with_info['지역'] = region_name
-                            restaurant_with_info['카테고리'] = selected_category
-                            restaurants.append(restaurant_with_info)
-            
-            elif selected_category == "전체":
-                # 특정 지역, 모든 카테고리
-                for category_name, category_restaurants in data[selected_region].items():
-                    for restaurant in category_restaurants:
-                        restaurant_with_info = restaurant.copy()
-                        restaurant_with_info['지역'] = selected_region
-                        restaurant_with_info['카테고리'] = category_name
-                        restaurants.append(restaurant_with_info)
-            
-            else:
-                # 특정 지역, 특정 카테고리
-                for restaurant in data[selected_region][selected_category]:
-                    restaurant_with_info = restaurant.copy()
-                    restaurant_with_info['지역'] = selected_region
-                    restaurant_with_info['카테고리'] = selected_category
-                    restaurants.append(restaurant_with_info)
-            
-            # 식당 개수 표시
             st.info(f"총 {len(restaurants)}개의 식당이 검색되었습니다.")
             
-            # 식당 버튼 리스트
+            # 식당 선택 버튼 생성
             for idx, restaurant in enumerate(restaurants):
-                # 지역/카테고리 정보 표시 (전체 선택 시)
                 display_text = f"{restaurant['식당명']}"
-                if '지역' in restaurant:
+                if selected_region == "전체":
                     display_text += f" [{restaurant['지역'].replace('용인시 ', '')}]"
-                if '카테고리' in restaurant and (selected_category == "전체" or selected_region == "전체"):
-                    display_text += f" - {restaurant['카테고리']}"
                 
-                if st.button(
-                    display_text,
-                    key=f"restaurant_{idx}",
-                    use_container_width=True
-                ):
+                if st.button(display_text, key=f"res_{idx}", use_container_width=True):
                     st.session_state.selected_restaurant = restaurant
 
 with col2:
     st.subheader("🍽️ 식당 상세 정보")
     
     if st.session_state.selected_restaurant:
-        restaurant = st.session_state.selected_restaurant
+        res = st.session_state.selected_restaurant
         
-        # 식당 정보 카드 스타일로 표시
-        region_info = f"<p style='color: #888; font-size: 14px;'>📍 {restaurant.get('지역', '')} | 🍽️ {restaurant.get('카테고리', '')}</p>" if '지역' in restaurant else ""
-        
+        # 가독성 해결을 위한 명시적 스타일 (배경 흰색, 글자 진한 회색 고정)
         st.markdown(f"""
         <div style="
-            background-color: #f0f2f6;
-            padding: 30px;
-            border-radius: 10px;
-            border-left: 5px solid #ff4b4b;
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid #ddd;
+            border-left: 10px solid #ff4b4b;
+            color: #222222;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
         ">
-            <h2 style="color: #ff4b4b; margin-top: 0;">🏪 {restaurant['식당명']}</h2>
-            {region_info}
-            <hr style="margin: 20px 0;">
-            <h3>💰 가격 정보</h3>
-            <p style="font-size: 18px; line-height: 1.8;">
-                {restaurant['가격대'].replace(' / ', '<br>• ')}
+            <h2 style="color: #ff4b4b; margin: 0 0 10px 0; font-size: 24px;">🏪 {res['식당명']}</h2>
+            <p style="color: #777; font-size: 14px; margin-bottom: 20px;">
+                📍 {res['지역']} | 🍽️ {res['카테고리']}
             </p>
-            <hr style="margin: 20px 0;">
-            <h3>📍 주소</h3>
-            <p style="font-size: 16px; color: #555;">
-                {restaurant['주소']}
-            </p>
+            
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #333; margin-bottom: 8px;">💰 대표 메뉴 및 가격</h4>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; font-size: 16px; line-height: 1.6; color: #333;">
+                    {res['가격대'].replace(' / ', '<br>• ')}
+                </div>
+            </div>
+            
+            <div>
+                <h4 style="color: #333; margin-bottom: 8px;">📍 주소</h4>
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 10px; font-size: 15px; color: #555;">
+                    {res['주소']}
+                </div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
         
-        # 지도 링크 버튼들
-        st.markdown("### 🗺️ 지도에서 보기")
-        map_col1, map_col2, map_col3 = st.columns(3)
+        # 지도 연결 버튼
+        st.markdown("### 🗺️ 지도 앱으로 보기")
+        m_col1, m_col2, m_col3 = st.columns(3)
         
-        # URL 인코딩을 위한 import
-        from urllib.parse import quote
-        
-        # 검색어 최적화: 식당명 + 간단한 지역명
-        address_parts = restaurant['주소'].split()
-        simple_location = ' '.join(address_parts[:3])  # 예: 경기도 용인시 기흥구
-        
-        with map_col1:
-            # 네이버 지도: 식당명만으로 검색
-            search_query = quote(f"{restaurant['식당명']} 용인")
-            naver_map_url = f"https://map.naver.com/v5/search/{search_query}"
-            st.link_button("🗺️ 네이버 지도", naver_map_url, use_container_width=True)
-        
-        with map_col2:
-            # 카카오맵: 식당명 + 간단한 주소
-            kakao_query = quote(f"{restaurant['식당명']} {simple_location}")
-            kakao_map_url = f"https://map.kakao.com/link/search/{kakao_query}"
-            st.link_button("🗺️ 카카오맵", kakao_map_url, use_container_width=True)
-        
-        with map_col3:
-            # 구글 지도
-            google_query = quote(f"{restaurant['식당명']} {restaurant['주소']}")
-            google_map_url = f"https://www.google.com/maps/search/{google_query}"
-            st.link_button("🗺️ 구글 지도", google_map_url, use_container_width=True)
-        
-        # 초기화 버튼
-        if st.button("🔄 다시 검색하기", use_container_width=True):
+        query_simple = quote(f"{res['식당명']} 용인")
+        query_full = quote(f"{res['식당명']} {res['주소']}")
+
+        with m_col1:
+            st.link_button("네이버 지도", f"https://map.naver.com/v5/search/{query_simple}", use_container_width=True)
+        with m_col2:
+            st.link_button("카카오맵", f"https://map.kakao.com/link/search/{query_full}", use_container_width=True)
+        with m_col3:
+            st.link_button("구글 지도", f"https://www.google.com/maps/search/{query_full}", use_container_width=True)
+            
+        if st.button("🔄 검색 초기화", use_container_width=True):
             st.session_state.selected_restaurant = None
             st.rerun()
+            
     else:
-        st.info("👈 왼쪽에서 지역과 카테고리를 선택한 후, 식당을 클릭하면 상세 정보가 표시됩니다.")
-        st.image("https://via.placeholder.com/600x400/f0f2f6/666666?text=식당을+선택해주세요", use_container_width=True)
+        st.info("👈 왼쪽에서 식당을 선택하면 상세 정보가 표시됩니다.")
+        st.image("https://via.placeholder.com/800x400/f0f2f6/666666?text=Select+a+Restaurant", use_container_width=True)
 
 # 푸터
 st.markdown("---")
 st.markdown("""
-<div style="text-align: center; color: #666;">
-    <p>용인시 맛집 정보 | 데이터는 참고용이며, 실제 가격과 다를 수 있습니다.</p>
-</div>
-""", unsafe_allow_html=True)
+    <div style="text-align: center; color: #999; font-size: 12px; padding: 20px;">
+        © 2026 용인시 맛집 가이드 | 제공된 정보는 실제와 다를 수 있습니다.
+    </div>
+    """, unsafe_allow_html=True)
