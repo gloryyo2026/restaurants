@@ -4,7 +4,7 @@ from urllib.parse import quote
 
 # 1. 페이지 설정
 st.set_page_config(
-    page_title="용인시 맛집 검색",
+    page_title="용인지역 가본 맛집 검색",
     page_icon="🍴",
     layout="wide"
 )
@@ -117,3 +117,4 @@ with col2:
 # 푸터
 st.markdown("---")
 st.markdown('<p style="text-align: center; color: #999; font-size: 12px;">용인시 맛집 검색 서비스 | 데이터는 실제 정보와 다를 수 있습니다.</p>', unsafe_allow_html=True)
+
