@@ -23,7 +23,7 @@ def load_restaurant_data():
 data = load_restaurant_data()
 
 # 3. 타이틀
-st.title("🍴 용인시 맛집 검색")
+st.title("🍴 용인지역 기본 맛집 검색")
 st.markdown("---")
 
 # 4. 세션 상태 초기화
@@ -117,4 +117,5 @@ with col2:
 # 푸터
 st.markdown("---")
 st.markdown('<p style="text-align: center; color: #999; font-size: 12px;">용인시 맛집 검색 서비스 | 데이터는 실제 정보와 다를 수 있습니다.</p>', unsafe_allow_html=True)
+
 
